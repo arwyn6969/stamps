@@ -1,0 +1,58 @@
+import requests
+
+# Define a function to print the matching broadcast
+def print_matching_broadcast(matching_broadcast):
+    if matching_broadcast:
+        print('Matching broadcast found:')
+        print(f'TX Hash: {matching_broadcast["tx_hash"]}')
+        print(f'BASE64: {matching_broadcast["text"]}')
+    else:
+        print('No matching broadcasts found')
+
+# Prompt the user for the asset symbol
+asset_symbol = input('Enter the asset symbol: ')
+
+# Make a GET request to the xChain.io API to retrieve information about the asset
+asset_url = f'https://xchain.io/api/asset/{asset_symbol}'
+asset_response = requests.get(asset_url)
+
+# Check that the request was successful
+if asset_response.status_code == 200:
+    # Extract the asset information from the API response
+    asset_data = asset_response.json()
+
+    # Extract the tele message tx hash from the description field
+    description = asset_data['description']
+    tele_message_tx_hash = description.split(';')[1].strip()
+
+    # Print the asset information in a user-friendly format
+    print(f'Asset Name: {asset_data["asset"]}')
+    print(f'Asset ID: {asset_data["asset_id"]}')
+    print(f'Tele Message TX Hash: {tele_message_tx_hash}')
+
+    # Make a GET request to the xChain.io API to retrieve broadcasts by the issuer's address
+    issuer_address = asset_data['issuer']
+    broadcast_url = f'https://xchain.io/api/broadcasts/{issuer_address}'
+    broadcast_response = requests.get(broadcast_url)
+
+    # Check that the request was successful
+    if broadcast_response.status_code == 200:
+        broadcasts = broadcast_response.json()['data']
+        matching_broadcast = None
+        for broadcast in broadcasts:
+            if broadcast['tx_hash'] == tele_message_tx_hash:
+                matching_broadcast = broadcast
+                break
+
+        # Print the matching broadcast (if any)
+        print_matching_broadcast(matching_broadcast)
+
+        print(f'Total Broadcasts by Issuer ({issuer_address}): {len(broadcasts)}')
+    else:
+        print(f'Error getting broadcasts: {broadcast_response.status_code} - {broadcast_response.reason}')
+else:
+    # Handle the case where the API request fails
+    if asset_response.status_code == 404:
+        print(f'Error: Invalid asset symbol - {asset_symbol}')
+    else:
+        print(f'Error: API request failed - {asset_response.status_code} - {asset_response.reason}')
